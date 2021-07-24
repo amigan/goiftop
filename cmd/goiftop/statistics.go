@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/fs714/goiftop/utils/queue"
+	"github.com/amigan/goiftop/internal/queue"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"sync"

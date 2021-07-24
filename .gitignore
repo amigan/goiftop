@@ -36,3 +36,5 @@ __pycache__/
 bin/
 bindata.go
 
+goiftop
+!cmd/goiftop/

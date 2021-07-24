@@ -1,17 +1,7 @@
-.PHONY: build
-
-default: build
-
-BINARY=goiftop
-BUILD_TIME=`date +%FT%T%z`
-
-LDFLAGS=-ldflags "-s -X main.BuildTime=${BUILD_TIME}"
-
-bindata:
-	go-bindata-assetfs  static/...
-build:
-	go-bindata-assetfs  static/...
-	env GOOS=linux GOARCH=amd64 go build -o bin/${BINARY} ${LDFLAGS}
+all: build
+cmd/goiftop/bindata.go: static/*
+	go-bindata -fs -prefix "static/" -pkg main -o cmd/goiftop/bindata.go static/...
+build: cmd/goiftop/bindata.go
+	go build github.com/amigan/goiftop/cmd/goiftop
 clean:
-	rm bindata.go
-	rm -rf bin/
+	rm -f cmd/goiftop/bindata.go goiftop

@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/fs714/goiftop/utils/log"
+	"github.com/amigan/goiftop/internal/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"math"
@@ -42,7 +42,7 @@ func main() {
 		log.Infof("Start HTTP Server on port %d\n", port)
 		http.HandleFunc("/l3flow", L3FlowHandler)
 		http.HandleFunc("/l4flow", L4FlowHandler)
-		http.Handle("/", http.StripPrefix("/", http.FileServer(assetFS())))
+		http.Handle("/", http.StripPrefix("/", http.FileServer(AssetFile())))
 
 		err := http.ListenAndServe(":"+strconv.Itoa(port), nil)
 		if err != nil {

@@ -1,9 +1,8 @@
-module github.com/fs714/goiftop
+module github.com/amigan/goiftop
 
-go 1.12
+go 1.16
 
 require (
-	github.com/elazarl/go-bindata-assetfs v1.0.0
 	github.com/google/gopacket v1.1.17
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
