@@ -7,6 +7,7 @@ import (
 	"github.com/amigan/goiftop/internal/log"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
+	"github.com/gorilla/websocket"
 	"math"
 	"net/http"
 	"os"
@@ -17,34 +18,39 @@ import (
 	"time"
 )
 
-var ifaceName string
-var filter string
-var enableLayer4 bool
-var port int
-var isShowVersion bool
+var AppVersion = "0.0.1"
 
-func init() {
-	flag.StringVar(&ifaceName, "i", "", "Interface name")
-	flag.StringVar(&filter, "bpf", "", "BPF filter")
-	flag.BoolVar(&enableLayer4, "l4", false, "Show transport layer flows")
-	flag.IntVar(&port, "p", 16384, "Http server listening port")
-	flag.BoolVar(&isShowVersion, "v", false, "Version")
-	flag.Parse()
-
-	if isShowVersion {
-		fmt.Println(AppVersion)
-		os.Exit(0)
-	}
+type Config struct {
+	ifaceName string
+	filter string
+	enableLayer4 bool
+	port int
 }
 
 func main() {
+	showVersion := false
+	cfg := Config{}
+
+	flag.StringVar(&cfg.ifaceName, "i", "", "Interface name")
+	flag.StringVar(&cfg.filter, "bpf", "", "BPF filter")
+	flag.BoolVar(&cfg.enableLayer4, "l4", false, "Show transport layer flows")
+	flag.IntVar(&cfg.port, "p", 16384, "Http server listening port")
+	flag.BoolVar(&showVersion, "v", false, "Version")
+	flag.Parse()
+
+	if showVersion {
+		fmt.Println(AppVersion)
+		os.Exit(0)
+	}
+
 	go func() {
-		log.Infof("Start HTTP Server on port %d\n", port)
+		log.Infof("Start HTTP Server on port %d\n", cfg.port)
 		http.HandleFunc("/l3flow", L3FlowHandler)
 		http.HandleFunc("/l4flow", L4FlowHandler)
+		http.HandleFunc("/ws", WsHandler)
 		http.Handle("/", http.StripPrefix("/", http.FileServer(AssetFile())))
 
-		err := http.ListenAndServe(":"+strconv.Itoa(port), nil)
+		err := http.ListenAndServe(":"+strconv.Itoa(cfg.port), nil)
 		if err != nil {
 			log.Errorf("Failed to start http server with error: %s\n" + err.Error())
 			os.Exit(0)
@@ -59,19 +65,19 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT)
 	tickStatsDuration := time.Tick(time.Duration(1) * time.Second)
 
-	Stats.ifaces[ifaceName] = NewIface(ifaceName)
+	Stats.ifaces[cfg.ifaceName] = NewIface(cfg.ifaceName)
 	ctx, cancel := context.WithCancel(context.Background())
-	go listenPacket(ifaceName, ctx)
+	go listenPacket(cfg, ctx)
 
 	for {
 		select {
 		case <-tickStatsDuration:
 			fmt.Println("------")
-			updateL3FlowSnapshots()
+			updateL3FlowSnapshots(cfg.ifaceName)
 			printFlowSnapshots(L3FlowSnapshots)
-			if enableLayer4 {
+			if cfg.enableLayer4 {
 				fmt.Println()
-				updateL4FlowSnapshots()
+				updateL4FlowSnapshots(cfg.ifaceName)
 				printFlowSnapshots(L4FlowSnapshots)
 			}
 		case <-signalChan:
@@ -84,14 +90,14 @@ END:
 	log.Infoln("Exit...")
 }
 
-func listenPacket(ifaceName string, ctx context.Context) {
-	handle, err := pcap.OpenLive(ifaceName, 65536, true, pcap.BlockForever)
+func listenPacket(cfg Config, ctx context.Context) {
+	handle, err := pcap.OpenLive(cfg.ifaceName, 65536, true, pcap.BlockForever)
 	if err != nil {
 		log.Errorf("Failed to OpenLive by pcap, err: %s\n", err.Error())
 		os.Exit(0)
 	}
 
-	err = handle.SetBPFFilter(filter)
+	err = handle.SetBPFFilter(cfg.filter)
 	if err != nil {
 		log.Errorf("Failed to set BPF filter, err: %s\n", err.Error())
 		os.Exit(0)
@@ -105,12 +111,12 @@ func listenPacket(ifaceName string, ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case p := <-ps.Packets():
-			go Stats.PacketHandler(ifaceName, p)
+			go Stats.PacketHandler(cfg, p)
 		}
 	}
 }
 
-func updateL3FlowSnapshots() {
+func updateL3FlowSnapshots(ifaceName string) {
 	L3FlowSnapshots = make([]*FlowSnapshot, 0, 0)
 	Stats.ifaces[ifaceName].UpdateL3FlowQueue()
 	for _, v := range Stats.ifaces[ifaceName].L3Flows {
@@ -126,7 +132,7 @@ func updateL3FlowSnapshots() {
 	})
 }
 
-func updateL4FlowSnapshots() {
+func updateL4FlowSnapshots(ifaceName string) {
 	L4FlowSnapshots = make([]*FlowSnapshot, 0, 0)
 	Stats.ifaces[ifaceName].UpdateL4FlowQueue()
 	for _, v := range Stats.ifaces[ifaceName].L4Flows {

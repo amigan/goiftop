@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "github.com/amigan/goiftop/cmd/goiftop";
+
+message FlowSnapshot {
+	string Protocol = 1;
+
+	message SdTuple {
+		string SrcAddr = 1;
+		string DstAddr = 2;
+	}
+
+	message Rate1 {
+		int64 Up = 1;
+		int64 Dn = 2;
+	}
+
+	message Rate15 {
+		int64 Up = 1;
+		int64 Dn = 2;
+	}
+
+	message Rate60 {
+		int64 Up = 1;
+		int64 Dn = 2;
+	}
+}
+
+message SrvCommand {
+	enum Cmd {
+		CLEAR = 0;
+	}
+}
+
+message CliCommand {
+	enum Cmd {
+		SEND = 0;
+	}
+}

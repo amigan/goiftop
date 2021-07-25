@@ -203,7 +203,8 @@ func (s *Statistics) GetIface(ifaceName string) (iface *Iface) {
 	return
 }
 
-func (s *Statistics) PacketHandler(ifaceName string, pkg gopacket.Packet) {
+func (s *Statistics) PacketHandler(cfg Config, pkg gopacket.Packet) {
+	ifaceName := cfg.ifaceName
 	iface := s.GetIface(ifaceName)
 	var l3Type, l4Protocol string
 	var srcAddr, dstAddr string
@@ -242,7 +243,7 @@ func (s *Statistics) PacketHandler(ifaceName string, pkg gopacket.Packet) {
 	}
 
 	iface.UpdateL3Flow(l3Type, srcAddr, dstAddr, l3Len)
-	if enableLayer4 {
+	if cfg.enableLayer4 {
 		iface.UpdateL4Flow(l4Protocol, srcAddr, dstAddr, srcPort, dstPort, l4Len)
 	}
 }
